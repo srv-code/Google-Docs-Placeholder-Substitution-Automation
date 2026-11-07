@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+
+    <style>
+      :root {
+        --primary: #1a73e8;
+        --border: #dadce0;
+        --text: #202124;
+        --secondary: #5f6368;
+        --background: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 22px;
+        background: var(--background);
+        color: var(--text);
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+      }
+
+      #formContent {
+        display: none;
+      }
+
+      .divider {
+        height: 1px;
+        margin: 17px 0;
+        background: var(--border);
+      }
+
+      .metadata {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .metadata-row {
+        display: grid;
+        grid-template-columns: 125px 1fr;
+        align-items: start;
+        gap: 8px;
+      }
+
+      .metadata-label {
+        color: var(--secondary);
+        font-weight: 600;
+      }
+
+      .metadata-value {
+        overflow-wrap: anywhere;
+        line-height: 1.5;
+      }
+
+      #documentTitle {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .section-heading {
+        margin: 23px 0 20px;
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-align: center;
+      }
+
+      .field {
+        margin-bottom: 13px;
+      }
+
+      .field-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .field-name {
+        font-weight: 600;
+      }
+
+      .placeholder {
+        color: var(--secondary);
+        font-family: monospace;
+        font-size: 11px;
+      }
+
+      input {
+        width: 100%;
+        height: 36px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        outline: none;
+        color: var(--text);
+        font-size: 13px;
+        background: #fff;
+      }
+
+      input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 1px var(--primary);
+      }
+
+      input:read-only {
+        background: #f8f9fa;
+        color: var(--secondary);
+        cursor: not-allowed;
+      }
+
+      .buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin: 19px 0;
+      }
+
+      button {
+        min-width: 105px;
+        height: 36px;
+        padding: 0 16px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: white;
+      }
+
+      button:hover:not(:disabled) {
+        filter: brightness(0.95);
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      #message {
+        display: none;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 0;
+        padding: 12px;
+        border-radius: 5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      #message.info {
+        display: flex;
+        color: #1967d2;
+        background: #e8f0fe;
+      }
+
+      #message.warning {
+        display: block;
+        color: #9a6700;
+        background: #fef7e0;
+      }
+
+      #message.error {
+        display: block;
+        color: #d93025;
+        background: #fce8e6;
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        flex: 0 0 14px;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(26, 103, 210, 0.2);
+        border-top-color: #1967d2;
+        border-radius: 50%;
+        animation: spin 0.75s linear infinite;
+      }
+
+      .message-text {
+        flex: 1;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <!-- DYNAMIC FORM -->
+
+    <div id="formContent">
+
+      <!-- DOCUMENT INFORMATION -->
+
+      <div class="metadata">
+
+        <div class="metadata-row">
+          <span class="metadata-label">Document name:</span>
+          <span class="metadata-value" id="documentName"></span>
+        </div>
+
+        <div class="metadata-row">
+          <span class="metadata-label">Document title:</span>
+          <span class="metadata-value" id="documentTitle"></span>
+        </div>
+
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- PREDEFINED FIELDS -->
+
+      <div class="section-heading" id="predefinedHeading"></div>
+
+      <div id="predefinedFields"></div>
+
+      <!-- ADDITIONAL FIELDS -->
+
+      <div id="additionalSection" style="display:none;">
+
+        <div class="divider"></div>
+
+        <div class="section-heading" id="additionalHeading"></div>
+
+        <div id="additionalFields"></div>
+
+      </div>
+
+      <!-- ACTION BUTTONS -->
+
+      <div class="buttons">
+
+        <button id="resetButton" onclick="resetForm()" disabled>
+          Reset
+        </button>
+
+        <button id="substituteButton" class="primary" onclick="substitute()" disabled>
+          Substitute
+        </button>
+
+      </div>
+
+    </div>
+
+    <!-- STATUS MESSAGE -->
+
+    <div id="message" role="status" aria-live="polite"></div>
+
+    <script>
+
+      // ========================================================
+      // CONFIGURATION RECEIVED FROM CODE.GS
+      // ========================================================
+
+      let FIELD_CONFIG = [];
+      let ADDITIONAL_FIELDS = [];
+      let DEFAULTS = {};
+
+      let TITLE_CONFIG = {};
+      let EXISTING_TAB_TITLES = [];
+      let ACTIVE_TAB_ID = null;
+      let IS_ELIGIBLE = false;
+
+      let SECTION_SETTINGS = {};
+
+      // Generated by Apps Script, independently of the DATE field.
+      let TAB_TITLE_DATE = '';
+
+      const TITLE_ICONS = {
+        info: 'ℹ️',
+        warning: '⚠️',
+        error: '❌'
+      };
+
+      // ========================================================
+      // INITIALIZATION
+      // ========================================================
+
+      document.addEventListener('DOMContentLoaded', initialize);
+
+      function initialize() {
+        showMessage(
+          'Loading document information...',
+          'info',
+          true
+        );
+
+        google.script.run
+          .withSuccessHandler(handleInitialization)
+          .withFailureHandler(handleInitializationFailure)
+          .getInitialData();
+      }
+
+      function handleInitialization(data) {
+        if (!data || data.showForm !== true) {
+          IS_ELIGIBLE = false;
+
+          showMessage(
+            data?.warning ||
+            'This tab is not eligible for modification.',
+            data?.warningType || 'warning'
+          );
+
+          return;
+        }
+
+        // Store all configuration received from Code.gs.
+        FIELD_CONFIG = data.fields || [];
+        ADDITIONAL_FIELDS = data.additionalFields || [];
+        DEFAULTS = data.defaults || {};
+
+        TITLE_CONFIG = data.documentTitleConfig || {};
+        EXISTING_TAB_TITLES = data.existingTabTitles || [];
+
+        SECTION_SETTINGS = data.settings || {};
+        TAB_TITLE_DATE = data.tabTitleDate || '';
+
+        ACTIVE_TAB_ID = data.tabId || null;
+        IS_ELIGIBLE = data.eligible === true;
+
+        // Populate document information.
+        document.getElementById('documentName').textContent =
+          data.documentName || 'Unavailable';
+
+        // Render both sections dynamically.
+        renderPredefinedFields();
+        renderAdditionalFields();
+
+        // Display the form.
+        document.getElementById('formContent').style.display =
+          'block';
+
+        enableButtons();
+        clearMessage();
+
+        updateDocumentTitle();
+      }
+
+      function handleInitializationFailure(error) {
+        IS_ELIGIBLE = false;
+
+        const message = error && error.message
+          ? error.message
+          : String(error);
+
+        showMessage(message, 'error');
+      }
+
+      // ========================================================
+      // DYNAMIC FIELD RENDERING
+      // ========================================================
+
+      function createFieldElement(field, index, section) {
+        const container = document.createElement('div');
+        container.className = 'field';
+
+        const labelRow = document.createElement('div');
+        labelRow.className = 'field-label';
+
+        const label = document.createElement('span');
+        label.className = 'field-name';
+        label.textContent = field.title;
+
+        const token = document.createElement('span');
+        token.className = 'placeholder';
+        token.textContent = field.placeholder;
+
+        const input = document.createElement('input');
+
+        input.type = 'text';
+        input.id = `${section}Field_${index}`;
+        input.dataset.fieldKey = field.key;
+        input.dataset.placeholder = field.placeholder;
+
+        input.value = field.defaultValue ?? '';
+
+        labelRow.appendChild(label);
+        labelRow.appendChild(token);
+
+        container.appendChild(labelRow);
+        container.appendChild(input);
+
+        return container;
+      }
+
+      function renderPredefinedFields() {
+        const heading =
+          document.getElementById('predefinedHeading');
+
+        const container =
+          document.getElementById('predefinedFields');
+
+        heading.textContent =
+          SECTION_SETTINGS.predefinedSectionTitle || 'PLACEHOLDERS';
+
+        container.replaceChildren();
+
+        FIELD_CONFIG.forEach((field, index) => {
+          container.appendChild(
+            createFieldElement(field, index, 'predefined')
+          );
+        });
+      }
+
+      function renderAdditionalFields() {
+        const section =
+          document.getElementById('additionalSection');
+
+        const heading =
+          document.getElementById('additionalHeading');
+
+        const container =
+          document.getElementById('additionalFields');
+
+        container.replaceChildren();
+
+        if (!ADDITIONAL_FIELDS.length) {
+          section.style.display = 'none';
+          return;
+        }
+
+        section.style.display = 'block';
+
+        heading.textContent =
+          SECTION_SETTINGS.additionalSectionTitle ||
+          'ADDITIONAL PLACEHOLDERS';
+
+        ADDITIONAL_FIELDS.forEach((field, index) => {
+          container.appendChild(
+            createFieldElement(field, index, 'additional')
+          );
+        });
+      }
+
+      // ========================================================
+      // FIELD VALUE COLLECTION
+      // ========================================================
+
+      function collectFieldValues() {
+        const values = {};
+
+        FIELD_CONFIG.forEach((field, index) => {
+          const input = document.getElementById(
+            `predefinedField_${index}`
+          );
+
+          values[ field.key ] = input ? input.value : '';
+        });
+
+        ADDITIONAL_FIELDS.forEach((field, index) => {
+          const input = document.getElementById(
+            `additionalField_${index}`
+          );
+
+          values[ field.key ] = input ? input.value : '';
+        });
+
+        return values;
+      }
+
+      // ========================================================
+      // RESET
+      // ========================================================
+
+      function resetForm() {
+        if (!IS_ELIGIBLE) return;
+
+        FIELD_CONFIG.forEach((field, index) => {
+          const input = document.getElementById(
+            `predefinedField_${index}`
+          );
+
+          if (input) {
+            input.value = DEFAULTS[ field.key ] ?? '';
+          }
+        });
+
+        ADDITIONAL_FIELDS.forEach((field, index) => {
+          const input = document.getElementById(
+            `additionalField_${index}`
+          );
+
+          if (input) {
+            input.value = '';
+          }
+        });
+
+        clearMessage();
+        updateDocumentTitle();
+      }
+
+      // ========================================================
+      // DOCUMENT TITLE GENERATION
+      // ========================================================
+
+      function generateDocumentTitle() {
+        const values = collectFieldValues();
+
+        const companyName = String(
+          values[ TITLE_CONFIG.companyFieldKey ] || ''
+        ).trim();
+
+        // The date is generated by Apps Script.
+        // It is deliberately independent of the DATE form input.
+        const date = TAB_TITLE_DATE;
+
+        const maxLength =
+          SECTION_SETTINGS.maxTabTitleLength || 100;
+
+        const ellipsis =
+          SECTION_SETTINGS.titleEllipsis || '...';
+
+        const separator = TITLE_CONFIG.separator || ' - ';
+
+        const existing = new Set(
+          EXISTING_TAB_TITLES.map(title => title.toLowerCase())
+        );
+
+        for (let iteration = 1; ; iteration++) {
+          const suffix = iteration > 1
+            ? ` (${iteration})`
+            : '';
+
+          const prefix = `${companyName}${separator}${date}${suffix}`;
+
+          const characters = Array.from(prefix);
+
+          let candidate = prefix;
+
+          if (characters.length > maxLength) {
+            const availableLength =
+              maxLength - Array.from(ellipsis).length;
+
+            candidate =
+              characters.slice(0, availableLength).join('') +
+              ellipsis;
+          }
+
+          if (!existing.has(candidate.toLowerCase())) {
+            return candidate;
+          }
+        }
+      }
+
+      function updateDocumentTitle() {
+        const titleElement =
+          document.getElementById('documentTitle');
+
+        if (titleElement) {
+          titleElement.textContent = generateDocumentTitle();
+        }
+      }
+
+      // Only the company name affects the tab-title preview.
+      document.addEventListener('input', event => {
+        const key = event.target.dataset?.fieldKey;
+
+        if (key === TITLE_CONFIG.companyFieldKey) {
+          updateDocumentTitle();
+        }
+      });
+
+      // ========================================================
+      // SUBSTITUTION
+      // ========================================================
+
+      function substitute() {
+        if (!IS_ELIGIBLE || !ACTIVE_TAB_ID) {
+          showMessage(
+            'Substitution is not permitted in this tab.',
+            'warning'
+          );
+
+          return;
+        }
+
+        const values = collectFieldValues();
+
+        // Validate all predefined fields.
+        const missingFields = FIELD_CONFIG.filter(field => {
+          return !String(values[ field.key ] || '').trim();
+        });
+
+        if (missingFields.length) {
+          showMessage(
+            'Please provide values for the following fields:\n\n' +
+            missingFields.map(field => field.title).join(', '),
+            'error',
+            false,
+            true
+          );
+
+          return;
+        }
+
+        // Validate all additional fields.
+        const missingAdditional = ADDITIONAL_FIELDS.filter(field => {
+          return !String(values[ field.key ] || '').trim();
+        });
+
+        if (missingAdditional.length) {
+          showMessage(
+            'Please provide values for these additional placeholders:\n\n' +
+            missingAdditional.map(field => field.placeholder).join(', '),
+            'error',
+            false,
+            true
+          );
+
+          return;
+        }
+
+        // Start server-side substitution.
+        setLoading(true);
+        clearMessage();
+
+        google.script.run
+          .withSuccessHandler(handleSubstitutionSuccess)
+          .withFailureHandler(handleFailure)
+          .substitutePlaceholders(ACTIVE_TAB_ID, values);
+      }
+
+      function handleSubstitutionSuccess(result) {
+        if (!result || !result.success) {
+          setLoading(false);
+
+          showMessage(
+            result?.message || 'Substitution failed.',
+            'error'
+          );
+
+          return;
+        }
+
+        if (result.warning) {
+          setLoading(false);
+          disableButtons();
+
+          showMessage(result.warning, 'warning');
+
+          return;
+        }
+
+        google.script.host.close();
+      }
+
+      // ========================================================
+      // STATUS MESSAGES
+      // ========================================================
+
+      function showMessage(
+        message,
+        type,
+        loading = false,
+        preserveForm = false
+      ) {
+        const messageElement =
+          document.getElementById('message');
+
+        const formElement =
+          document.getElementById('formContent');
+
+        // Keep the form visible only for recoverable validation.
+        if (!preserveForm) {
+          formElement.style.display = 'none';
+        }
+
+        const icon = TITLE_ICONS[ type ] || '';
+
+        const cleanMessage = String(message).replace(
+          /^(ℹ️|⚠️|❌)\s*/,
+          ''
+        );
+
+        messageElement.replaceChildren();
+
+        if (icon) {
+          const iconElement = document.createElement('span');
+          iconElement.textContent = icon;
+          messageElement.appendChild(iconElement);
+        }
+
+        if (loading) {
+          const spinner = document.createElement('span');
+
+          spinner.className = 'loading-spinner';
+          spinner.setAttribute('aria-label', 'Loading');
+
+          messageElement.appendChild(spinner);
+        }
+
+        const textElement = document.createElement('span');
+
+        textElement.className = 'message-text';
+        textElement.textContent = cleanMessage;
+
+        messageElement.appendChild(textElement);
+
+        messageElement.className = type;
+      }
+
+      function clearMessage() {
+        const messageElement =
+          document.getElementById('message');
+
+        messageElement.replaceChildren();
+        messageElement.className = '';
+      }
+
+      // ========================================================
+      // BUTTON STATES
+      // ========================================================
+
+      function enableButtons() {
+        document.getElementById('resetButton').disabled = false;
+        document.getElementById('substituteButton').disabled = false;
+      }
+
+      function disableButtons() {
+        document.getElementById('resetButton').disabled = true;
+        document.getElementById('substituteButton').disabled = true;
+      }
+
+      function setLoading(loading) {
+        const resetButton =
+          document.getElementById('resetButton');
+
+        const substituteButton =
+          document.getElementById('substituteButton');
+
+        resetButton.disabled = loading || !IS_ELIGIBLE;
+        substituteButton.disabled = loading || !IS_ELIGIBLE;
+
+        substituteButton.textContent = loading
+          ? 'Processing...'
+          : 'Substitute';
+      }
+
+      // ========================================================
+      // ERROR HANDLING
+      // ========================================================
+
+      function handleFailure(error) {
+        setLoading(false);
+
+        const message = error && error.message
+          ? error.message
+          : String(error);
+
+        showMessage(message, 'error');
+      }
+
+    </script>
+
+  </body>
+
+</html>
