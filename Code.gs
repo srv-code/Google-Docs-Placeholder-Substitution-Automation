@@ -72,7 +72,7 @@ const PLACEHOLDER_CONFIG = Object.freeze({
       key: 'jobTitle',
       placeholder: '{{JOB_TITLE}}',
       title: 'Job Title',
-      defaultValue: 'Lead React Native engineer',
+      defaultValue: 'Lead React Native Engineer',
       optional: false,
     }),
 
@@ -670,14 +670,15 @@ function substitutePlaceholders(tabId, values) {
       },
     }));
 
-    // Rename tab.
+    // Rename the tab and clear its dedicated emoji icon.
     requests.push({
       updateDocumentTabProperties: {
         tabProperties: {
           tabId: tabId,
           title: newTitle,
+          iconEmoji: '',
         },
-        fields: 'title',
+        fields: 'title,iconEmoji',
       },
     });
 
