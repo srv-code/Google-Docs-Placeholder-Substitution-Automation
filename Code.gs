@@ -22,7 +22,7 @@ const PLACEHOLDER_CONFIG = Object.freeze({
     requiredParentTab: 'Generated',
 
     timeZone: 'Asia/Kolkata',
-    dateFormat: 'dd/MMM/yyyy',
+    dateFormat: 'dd MMMM yyyy',
 
     // Date format used exclusively for the generated tab title.
     tabTitleDateFormat: 'dd/MMM/yyyy',
@@ -49,6 +49,7 @@ const PLACEHOLDER_CONFIG = Object.freeze({
       title: 'Date',
       defaultValue: '',
       defaultValueType: 'today',
+      optional: false,
     }),
 
     Object.freeze({
@@ -56,48 +57,40 @@ const PLACEHOLDER_CONFIG = Object.freeze({
       placeholder: '{{COMPANY_NAME}}',
       title: 'Company Name',
       defaultValue: 'your company',
+      optional: false,
     }),
 
     Object.freeze({
-      key: 'companyCity',
-      placeholder: '{{COMPANY_CITY}}',
-      title: 'Company City',
+      key: 'companyLocation',
+      placeholder: '{{COMPANY_LOCATION}}',
+      title: 'Company Location',
       defaultValue: 'Bengaluru, Karnataka',
+      optional: false,
     }),
 
     Object.freeze({
       key: 'jobTitle',
       placeholder: '{{JOB_TITLE}}',
       title: 'Job Title',
-      defaultValue: 'Senior React Native Engineer',
+      defaultValue: 'Lead React Native Engineer',
+      optional: false,
     }),
 
     Object.freeze({
       key: 'jobReferralSource',
       placeholder: '{{JOB_REFERRAL_SOURCE}}',
       title: 'Job Referral Source',
-      defaultValue: 'Linkedin',
+      defaultValue: 'LinkedIn',
+      optional: false,
     }),
 
     Object.freeze({
-      key: 'keyRequirement1',
-      placeholder: '{{KEY_REQUIREMENT_1}}',
-      title: 'Key Requirement 1',
-      defaultValue: 'React Native',
-    }),
-
-    Object.freeze({
-      key: 'keyRequirement2',
-      placeholder: '{{KEY_REQUIREMENT_2}}',
-      title: 'Key Requirement 2',
-      defaultValue: 'Redux',
-    }),
-
-    Object.freeze({
-      key: 'keyRequirement3',
-      placeholder: '{{KEY_REQUIREMENT_3}}',
-      title: 'Key Requirement 3',
-      defaultValue: 'JavaScript/TypeScript',
+      key: 'jobId',
+      placeholder: '{{JOB_ID}}',
+      title: 'Job ID',
+      defaultValue: '',
+      optional: true,
+      replacementFormat: '(Job ID: {value})',
     }),
   ]),
 });
@@ -149,6 +142,9 @@ function getConfiguredDefaults_() {
 }
 
 function getConfiguredPlaceholders_() {
+  // Include every configured placeholder, including optional fields.
+  // Optional controls whether a value is required, not whether the
+  // placeholder is recognized as predefined.
   return PLACEHOLDER_CONFIG.fields.map(field => field.placeholder);
 }
 
@@ -221,10 +217,13 @@ function getInitialData() {
 
     const documentText = extractTextFromContent_(tabContent);
 
-    // Check all configured placeholders.
-    const configuredPlaceholders = getConfiguredPlaceholders_();
+    // Check mandatory placeholders only.
+    // Optional placeholders remain configured but are not required in the template.
+    const requiredPlaceholders = PLACEHOLDER_CONFIG.fields
+      .filter(field => !field.optional)
+      .map(field => field.placeholder);
 
-    const missingPlaceholders = configuredPlaceholders.filter(
+    const missingPlaceholders = requiredPlaceholders.filter(
       placeholder => !documentText.includes(placeholder),
     );
 
@@ -254,6 +253,7 @@ function getInitialData() {
       title: field.title,
       defaultValue: defaults[field.key],
       additional: false,
+      optional: Boolean(field.optional),
     }));
 
     const additionalFields = additionalPlaceholders.map(
@@ -263,6 +263,7 @@ function getInitialData() {
         title: getPlaceholderLabel_(placeholder),
         defaultValue: '',
         additional: true,
+        optional: true,
       }),
     );
 
@@ -479,7 +480,7 @@ function truncateTabTitle_(title, maxLength, ellipsis) {
 
 function validateInputs_(values, additionalFields) {
   const missingFields = PLACEHOLDER_CONFIG.fields.filter(
-    field => !String(values[field.key] ?? '').trim(),
+    field => !field.optional && !String(values[field.key] ?? '').trim(),
   );
 
   if (missingFields.length) {
@@ -501,11 +502,7 @@ function validateInputs_(values, additionalFields) {
   additionalFields.forEach(field => {
     const value = String(values[field.key] ?? '').trim();
 
-    if (!value) {
-      throw new Error(`Please provide a value for ${field.placeholder}.`);
-    }
-
-    if (/\{\{[^{}\r\n]+\}\}/.test(value)) {
+    if (value && /\{\{[^{}\r\n]+\}\}/.test(value)) {
       throw new Error(
         `The value for ${field.placeholder} must not contain another placeholder token.`,
       );
@@ -589,7 +586,7 @@ function substitutePlaceholders(tabId, values) {
 
     // Verify all configured placeholders.
     const missingConfigured = PLACEHOLDER_CONFIG.fields.filter(
-      field => !originalText.includes(field.placeholder),
+      field => !field.optional && !originalText.includes(field.placeholder),
     );
 
     if (missingConfigured.length) {
@@ -609,6 +606,7 @@ function substitutePlaceholders(tabId, values) {
         placeholder: placeholder,
         title: getPlaceholderLabel_(placeholder),
         additional: true,
+        optional: true,
       }),
     );
 
@@ -616,15 +614,23 @@ function substitutePlaceholders(tabId, values) {
     validateInputs_(values, additionalFields);
 
     // Build replacement list from central configuration.
-    const replacements = PLACEHOLDER_CONFIG.fields.map(field => ({
-      placeholder: field.placeholder,
-      value: String(values[field.key]).trim(),
-    }));
+    const replacements = PLACEHOLDER_CONFIG.fields.map(field => {
+      const inputValue = String(values[field.key] ?? '').trim();
+      const replacementValue =
+        inputValue && field.replacementFormat
+          ? field.replacementFormat.replace('{value}', inputValue)
+          : inputValue;
+
+      return {
+        placeholder: field.placeholder,
+        value: replacementValue,
+      };
+    });
 
     additionalFields.forEach(field => {
       replacements.push({
         placeholder: field.placeholder,
-        value: String(values[field.key]).trim(),
+        value: String(values[field.key] ?? '').trim(),
       });
     });
 
@@ -643,8 +649,14 @@ function substitutePlaceholders(tabId, values) {
       tabTitleDate,
     );
 
+    // Only submit replacement requests for tokens present in this tab.
+    // Optional placeholders may legitimately be absent from a template.
+    const applicableReplacements = replacements.filter(item =>
+      originalText.includes(item.placeholder),
+    );
+
     // Build replacement requests.
-    const requests = replacements.map(item => ({
+    const requests = applicableReplacements.map(item => ({
       replaceAllText: {
         containsText: {
           text: item.placeholder,
@@ -658,14 +670,15 @@ function substitutePlaceholders(tabId, values) {
       },
     }));
 
-    // Rename tab.
+    // Rename the tab and clear its dedicated emoji icon.
     requests.push({
       updateDocumentTabProperties: {
         tabProperties: {
           tabId: tabId,
           title: newTitle,
+          iconEmoji: '',
         },
-        fields: 'title',
+        fields: 'title,iconEmoji',
       },
     });
 
@@ -676,7 +689,7 @@ function substitutePlaceholders(tabId, values) {
     );
 
     // Verify replacement counts.
-    const failedReplacements = replacements.filter((item, index) => {
+    const failedReplacements = applicableReplacements.filter((item, index) => {
       const reply = response.replies[index];
 
       return (
