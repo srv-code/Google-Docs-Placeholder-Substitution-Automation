@@ -27,6 +27,9 @@ custom placeholders in an eligible Google Docs tab.
 - Replaces placeholders only in the eligible target tab.
 - Generates a unique tab title in the format
   `<COMPANY_NAME> - <SCRIPT_GENERATED_DATE>`.
+- Clears the active tab's dedicated Google Docs emoji icon when the tab
+  title is updated. This affects the tab icon, not emoji characters in
+  the title or document content.
 - Reports unresolved or unexpected placeholder-like tokens as
   warnings.
 
@@ -62,6 +65,15 @@ predefined fields section, not again as an additional placeholder.
 
 Additional placeholders discovered in the document are also optional. If
 left blank, their placeholder markers are removed.
+
+## Document tab emoji
+
+When substitution successfully updates the eligible tab's title, the
+script also clears that tab's dedicated Google Docs tab emoji by setting
+its `iconEmoji` property to an empty string in the same
+`updateDocumentTabProperties` request. This is separate from the tab title:
+it does not remove emoji characters from the title or from document content.
+Only the active target tab is affected; other tabs are left unchanged.
 
 ## Date formats
 

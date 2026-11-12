@@ -19,7 +19,7 @@ silently assuming either one is correct.
 This Google Apps Script automation opens a custom modal in Google Docs.
 It reads the currently active tab, dynamically renders a form for
 predefined and additional placeholders, substitutes submitted values in
-that tab, and renames the tab.
+that tab, renames the tab, and clears its dedicated tab emoji icon.
 
 Project files:
 
@@ -338,11 +338,42 @@ Rules:
 - Duplicate titles receive suffixes such as `(2)`, `(3)`, appended
   after the date.
 - Maximum tab-title length is 100 characters; ellipsis is `...`.
+- When the script updates the title, it also clears the tab's dedicated
+  Google Docs emoji icon (the separate icon shown beside the tab title).
+  This does not strip emoji characters from the title text or document
+  body. The operation applies only to the active target tab.
 - Current server and HTML preview truncate the complete title and
   append ellipsis if it exceeds the limit. This may truncate
   date/suffix for unusually long company names. Do not change this
   silently; if improving it, preserve the date and suffix and keep
   preview/server algorithms consistent.
+
+### Clearing the tab's dedicated emoji icon
+
+The Google Docs tab has a dedicated emoji/icon property separate from its
+title text. The current substitution flow clears that icon as part of the
+same tab-properties update that renames the tab:
+
+```javascript
+updateDocumentTabProperties: {
+  tabProperties: {
+    tabId: tabId,
+    title: newTitle,
+    iconEmoji: '',
+  },
+  fields: 'title,iconEmoji',
+}
+```
+
+Important distinctions:
+
+- `iconEmoji: ''` clears the dedicated tab icon.
+- `fields: 'title,iconEmoji'` updates both properties in the request.
+- The request targets only the active eligible tab via its `tabId`.
+- It does not remove emoji characters that are part of the title string
+  or document content.
+- Do not replace this with title-string emoji sanitization; that would
+  change a different feature.
 
 ## 11. UI behavior
 
@@ -392,8 +423,8 @@ The latest `Code.gs` contains these principal functions:
 - `extractTextFromContent_()` --- extracts text from Docs API content.
 - `substitutePlaceholders(tabId, values)` --- revalidates the target
   tab and placeholders, creates tab-scoped replacements, renames the
-  tab, verifies replacement counts, refetches updated content, and
-  returns success/warnings.
+  tab and clears its dedicated emoji icon, verifies replacement counts,
+  refetches updated content, and returns success/warnings.
 
 The latest `Index.html` dynamically renders server-provided fields,
 collects values, resets fields, previews the tab title, submits
@@ -525,7 +556,7 @@ Review these when relevant; do not change them silently:
 - Successful substitution with warnings shows only the warning and
   disables buttons.
 
-### Tab title
+### Tab title and dedicated tab emoji
 
 - Company name appears before the script-generated date.
 - Title date uses `dd/MMM/yyyy`, independently of the `{{DATE}}`
@@ -535,6 +566,13 @@ Review these when relevant; do not change them silently:
 - Duplicate title suffixes are generated and compared
   case-insensitively.
 - Maximum length is respected.
+- If the target tab has a dedicated emoji icon assigned, substitution
+  clears it when updating the tab title.
+- If the target tab has no emoji icon assigned, the title update still
+  succeeds and leaves the tab with the default/no custom emoji state.
+- Emoji characters in the title text and document content are not
+  removed.
+- Other tabs' emoji icons are not modified.
 
 ## 16. Instructions to the next LLM
 
@@ -559,5 +597,10 @@ You are continuing an existing project, not starting from scratch.
     configured-token detection so they are not duplicated in the
     additional section.
 12. Keep active-tab safeguards and tab-scoped replacement intact.
-13. Do not claim Apps Script environment testing unless actually
+13. Preserve the tab-emoji behavior: when updating the target tab title,
+    also clear its dedicated tab icon by setting `iconEmoji: ''` and
+    including `iconEmoji` in the `updateDocumentTabProperties` field mask.
+    Do not remove emoji characters from the title text or document body,
+    and do not modify other tabs' icons.
+14. Do not claim Apps Script environment testing unless actually
     performed.
