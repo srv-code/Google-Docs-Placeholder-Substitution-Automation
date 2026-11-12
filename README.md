@@ -1,56 +1,98 @@
 # Google Docs Placeholder Substitution Automation
 
-A Google Apps Script project that helps populate predefined and custom
-placeholders in a selected Google Docs tab.
+A Google Apps Script project that dynamically substitutes predefined and
+custom placeholders in an eligible Google Docs tab.
 
 ## Repository contents
 
--   `Code.gs` --- Server-side Apps Script logic, configuration,
-    validation, placeholder replacement, and tab-title generation.
--   `Index.html` --- Modal interface for entering replacement values and
-    reviewing status messages.
--   `PROJECT_CONTEXT.md` --- Project requirements, design decisions,
-    development preferences, known considerations, and testing
-    checklist.
+- `Code.gs` --- Server-side configuration, tab eligibility checks,
+  validation, placeholder discovery and replacement, and tab-title
+  generation.
+- `Index.html` --- Dynamic modal form for entering placeholder values
+  and viewing status messages.
+- `PROJECT_CONTEXT.md` --- Detailed project requirements, current
+  configuration, implementation decisions, known considerations, and
+  LLM handoff instructions.
 
-## Key behavior
+## Key features
 
--   Adds an **Automation → Substitute Values** menu to Google Docs.
--   Operates only on the active tab when it is a direct child of the
-    `Generated` tab.
--   Builds the form dynamically from the central configuration in
-    `Code.gs`.
--   Detects additional `{{PLACEHOLDER}}` tokens and provides inputs for
-    them.
--   Replaces text only in the eligible target tab.
--   Generates a unique tab title in the format
-    `<COMPANY_NAME> - <SCRIPT_GENERATED_DATE>`.
--   Uses `Asia/Kolkata` and the configured `dd/MMM/yyyy` date format for
-    the tab-title date.
--   Reports unresolved or unexpected placeholder-like tokens as
-    warnings.
+- Adds an **Automation → Substitute Values** menu to Google Docs.
+- Modifies only the active tab when it is a direct child of the
+  `Generated` tab.
+- Builds predefined fields dynamically from the central
+  `PLACEHOLDER_CONFIG` in `Code.gs`.
+- Supports required and optional predefined fields.
+- Discovers unknown `{{PLACEHOLDER}}` tokens and displays them in a
+  separate additional-fields section.
+- Replaces placeholders only in the eligible target tab.
+- Generates a unique tab title in the format
+  `<COMPANY_NAME> - <SCRIPT_GENERATED_DATE>`.
+- Reports unresolved or unexpected placeholder-like tokens as
+  warnings.
+
+## Predefined placeholders
+
+---
+
+Placeholder Required? Default / behavior
+
+---
+
+`{{DATE}}` Yes Current date in `dd MMMM yyyy`
+format
+(e.g. `11 November 2026`)
+
+`{{COMPANY_NAME}}` Yes `your company`
+
+`{{COMPANY_LOCATION}}` Yes `Bengaluru, Karnataka`
+
+`{{JOB_TITLE}}` Yes `Lead React Native engineer`
+
+`{{JOB_REFERRAL_SOURCE}}` Yes `LinkedIn`
+
+`{{JOB_ID}}` No Empty by default; when
+supplied, replaced as
+`(Job ID: VALUE)`
+
+---
+
+The first five placeholders are the only mandatory fields. `{{JOB_ID}}`
+is the only optional predefined field. It must appear only once in the
+predefined fields section, not again as an additional placeholder.
+
+Additional placeholders discovered in the document are also optional. If
+left blank, their placeholder markers are removed.
+
+## Date formats
+
+- `dateFormat: 'dd MMMM yyyy'` controls the `{{DATE}}` placeholder.
+- `tabTitleDateFormat: 'dd/MMM/yyyy'` independently controls the
+  generated tab-title date.
+- Both use the `Asia/Kolkata` time zone.
 
 ## Setup
 
 1.  Create or open a Google Apps Script project bound to the target
     Google Doc.
-2.  Add the contents of `Code.gs` and `Index.html` to the project, using
-    the same filenames.
+2.  Add `Code.gs` and `Index.html` to the project.
 3.  Enable the **Google Docs API** advanced service in Apps Script.
-4.  Ensure the document has a parent tab named `Generated` and that the
-    intended working tab is its direct child.
-5.  Save and reload the Google Doc. Use **Automation → Substitute
+4.  Ensure the document contains a parent tab named `Generated` and that
+    the intended working tab is its direct child.
+5.  Save and reload the Google Doc.
+6.  Open the intended child tab and select **Automation → Substitute
     Values**.
 
 ## Development notes
 
-Read `PROJECT_CONTEXT.md` before making changes. It documents the
-intended behavior and important implementation constraints.
+Read `PROJECT_CONTEXT.md` before making changes. Keep
+`PLACEHOLDER_CONFIG` in `Code.gs` as the single source of truth;
+`Index.html` must remain data-driven.
 
-Keep `PLACEHOLDER_CONFIG` in `Code.gs` as the central source of truth
-for predefined fields and settings. The HTML form is designed to render
-from server-provided configuration rather than maintaining a separate
-hardcoded placeholder list.
+Optional fields must still be included in the configured-placeholder
+set. Optional means that the user is not required to enter a value; it
+does not mean that the token is unknown. This distinction prevents
+`{{JOB_ID}}` from appearing in both the predefined and additional
+sections.
 
-This repository is an archive of the project source and its development
-context. No automated deployment or testing workflow is included.
+This repository is intended for source and project-context archiving. It
+does not currently include an automated deployment or test workflow.
